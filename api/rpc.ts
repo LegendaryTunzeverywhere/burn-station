@@ -14,6 +14,16 @@ const UPSTREAM = process.env.RPC_URL || 'https://api.mainnet-beta.solana.com';
 const DAS_CAPABLE = /helius|das/i.test(UPSTREAM);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Set CORS headers for all responses
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Handle OPTIONS preflight request
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   // Lightweight capability probe the frontend calls once at startup.
   // Reveals only a boolean — never the upstream URL or API key.
   if (req.method === 'GET') {
