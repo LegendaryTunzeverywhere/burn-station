@@ -128,6 +128,14 @@ export async function buildBurnTransactions(
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
   const batches = chunk(assets, MAX_PER_TX);
 
+  // Check wallet SOL balance to determine if we can charge fees
+  const walletBalance = await connection.getBalance(owner);
+  
+  // Estimate transaction fee: base fee (5000 lamports) + priority fee
+  // Priority fee = COMPUTE_UNIT_LIMIT * PRIORITY_MICRO_LAMPORTS / 1,000,000
+  const estimatedTxFee = 5_000 + Math.ceil((COMPUTE_UNIT_LIMIT * PRIORITY_MICRO_LAMPORTS) / 1_000_000);
+  const minRequiredBalance = estimatedTxFee * batches.length; // Need enough for all transactions
+  
   // Charge exactly FEE_BPS (1%) of the COMBINED rent of every selected asset —
   // tokens and NFTs alike. Burns are split across several transactions, so we
   // compute the fee on the grand total once, then distribute it across the
@@ -144,6 +152,21 @@ export async function buildBurnTransactions(
   for (let i = 0; i < batchFees.length && remainder > 0; i++) {
     batchFees[i] += 1;
     remainder -= 1;
+  }
+  
+  // Calculate total fees we'll charge across all batches
+  const totalFeesToCharge = batchFees.reduce((sum, f) => sum + f, 0);
+  
+  // If wallet doesn't have enough SOL for transaction fees + platform fees, skip platform fees
+  // The user will still reclaim rent, just won't pay the 1% platform fee
+  const canAffordFees = walletBalance >= (minRequiredBalance + totalFeesToCharge);
+  const actualFee = canAffordFees ? totalFee : 0;
+  
+  if (!canAffordFees && FEE_ENABLED) {
+    console.info(
+      `[burn] Wallet has ${walletBalance} lamports, needs ${minRequiredBalance + totalFeesToCharge}. ` +
+      `Skipping platform fee to allow burn to proceed.`
+    );
   }
 
   const transactions: Transaction[] = batches.map((batch, i) => {
@@ -171,9 +194,8 @@ export async function buildBurnTransactions(
       tx.add(createCloseAccountInstruction(ata, owner, owner, [], pid));
     }
 
-    // Add fee transfer AFTER burn/close instructions so rent is reclaimed first
-    // This ensures the wallet has enough SOL to pay the fee from the reclaimed rent
-    const fee = batchFees[i];
+    // Only add fee transfer if wallet can afford it
+    const fee = canAffordFees ? batchFees[i] : 0;
     if (fee > 0 && FEE_WALLET) {
       tx.add(SystemProgram.transfer({ fromPubkey: owner, toPubkey: FEE_WALLET, lamports: fee }));
     }
@@ -183,5 +205,5 @@ export async function buildBurnTransactions(
     return tx;
   });
 
-  return { transactions, blockhash, lastValidBlockHeight, totalReclaim, totalFee };
+  return { transactions, blockhash, lastValidBlockHeight, totalReclaim, totalFee: actualFee };
 }
