@@ -8,24 +8,22 @@
 // Set this in Vercel: Project Settings -> Environment Variables -> RPC_URL
 // e.g. RPC_URL=https://mainnet.helius-rpc.com/?api-key=YOUR_KEY
 
-export const config = { runtime: 'nodejs' };
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const UPSTREAM = process.env.RPC_URL || 'https://api.mainnet-beta.solana.com';
 const DAS_CAPABLE = /helius|das/i.test(UPSTREAM);
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Lightweight capability probe the frontend calls once at startup.
   // Reveals only a boolean — never the upstream URL or API key.
   if (req.method === 'GET') {
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json({ dasCapable: DAS_CAPABLE });
-    return;
+    return res.status(200).json({ dasCapable: DAS_CAPABLE });
   }
 
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'GET, POST');
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
@@ -35,8 +33,10 @@ export default async function handler(req: any, res: any) {
       body: JSON.stringify(req.body),
     });
     const text = await upstreamRes.text();
-    res.status(upstreamRes.status).setHeader('Content-Type', 'application/json').send(text);
-  } catch {
-    res.status(502).json({ error: 'RPC proxy error' });
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(upstreamRes.status).send(text);
+  } catch (error) {
+    console.error('RPC proxy error:', error);
+    return res.status(502).json({ error: 'RPC proxy error' });
   }
 }
