@@ -112,6 +112,10 @@ export default function App() {
         </div>
       )}
 
+      <div className="config-banner" style={{ background: '#1a2808', color: '#b5f089', borderColor: '#2a3f0f' }}>
+        <span>⚠️ Phantom may show security warnings because this domain is new. This is a legitimate open-source dApp (<a href="https://github.com/LegendaryTunzeverywhere/burn-station" target="_blank" rel="noreferrer" style={{ color: '#b5f089', textDecoration: 'underline' }}>view source</a>). We're working on official verification.</span>
+      </div>
+
       <main className="content">
         {!connected ? (
           <section className="hero">
