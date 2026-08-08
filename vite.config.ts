@@ -11,7 +11,7 @@ function rpcProxyPlugin(rpcUrl: string): Plugin {
   return {
     name: 'burn-station-rpc-proxy',
     configureServer(server) {
-      const handler: Connect.NextHandleFunction = async (req, res) => {
+      const handler: Connect.NextHandleFunction = async (req: any, res: any) => {
         if (req.method === 'GET') {
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({ dasCapable }));
