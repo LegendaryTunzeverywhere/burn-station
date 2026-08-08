@@ -33,22 +33,38 @@ export function useBurn() {
         // One approval for the whole batch set when the wallet supports it.
         if (transactions.length > 1 && signAllTransactions) {
           setStatus('signing');
-          const signed = await signAllTransactions(transactions);
-          setStatus('sending');
-          for (const tx of signed) {
-            const sig = await connection.sendRawTransaction(tx.serialize(), {
-              skipPreflight: false,
-              preflightCommitment: 'confirmed',
-            });
-            signatures.push(sig);
+          try {
+            const signed = await signAllTransactions(transactions);
+            setStatus('sending');
+            for (const tx of signed) {
+              const sig = await connection.sendRawTransaction(tx.serialize(), {
+                skipPreflight: false,
+                preflightCommitment: 'confirmed',
+              });
+              signatures.push(sig);
+            }
+          } catch (signError: any) {
+            // Handle user rejection gracefully
+            if (/user rejected|rejected/i.test(signError?.message)) {
+              throw new Error('Transaction signing was rejected');
+            }
+            throw signError;
           }
         } else {
           for (const tx of transactions) {
             setStatus('sending');
-            const sig = await sendTransaction(tx, connection, {
-              preflightCommitment: 'confirmed',
-            });
-            signatures.push(sig);
+            try {
+              const sig = await sendTransaction(tx, connection, {
+                preflightCommitment: 'confirmed',
+              });
+              signatures.push(sig);
+            } catch (sendError: any) {
+              // Handle user rejection gracefully
+              if (/user rejected|rejected/i.test(sendError?.message)) {
+                throw new Error('Transaction was rejected');
+              }
+              throw sendError;
+            }
           }
         }
 

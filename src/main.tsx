@@ -33,7 +33,11 @@ function Root() {
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect onError={onError}>
+      <WalletProvider 
+        wallets={wallets} 
+        autoConnect={false}
+        onError={onError}
+      >
         <WalletModalProvider>
           <App />
         </WalletModalProvider>
