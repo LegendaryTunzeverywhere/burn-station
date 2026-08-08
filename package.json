@@ -17,6 +17,7 @@
     "@solana/wallet-adapter-react-ui": "^0.9.35",
     "@solana/web3.js": "^1.95.8",
     "@vercel/analytics": "^2.0.1",
+    "bs58": "^6.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -30,6 +31,8 @@
   },
   "comment": "rollup override uses the WASM build so `vite build` works on Termux/Android where Rollup's native .node binary can't be dlopened. Harmless elsewhere.",
   "overrides": {
-    "rollup": "npm:@rollup/wasm-node@^4"
+    "rollup": "npm:@rollup/wasm-node@^4",
+    "react": "$react",
+    "react-dom": "$react-dom"
   }
 }
