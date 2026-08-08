@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import '@solana/wallet-adapter-react-ui/styles.css';
+import { Analytics } from '@vercel/analytics/react';
 import { RPC_URL } from './lib/config';
 import { translateWalletError } from './lib/walletError';
 import { walletErrorStore } from './lib/walletErrorStore';
@@ -33,6 +34,7 @@ function Root() {
           <App />
         </WalletModalProvider>
       </WalletProvider>
+      <Analytics />
     </ConnectionProvider>
   );
 }
