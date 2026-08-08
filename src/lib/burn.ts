@@ -130,13 +130,19 @@ export async function buildBurnTransactions(
 
   // Check wallet SOL balance to determine if we can charge fees
   const walletBalance = await connection.getBalance(owner);
-  
   console.info(`[burn] Wallet balance: ${walletBalance} lamports (${(walletBalance / 1e9).toFixed(4)} SOL)`);
+  
+  // Wallet must maintain rent-exempt minimum (890,880 lamports) after all operations
+  const WALLET_RENT_EXEMPT = 890_880;
   
   // Estimate transaction fee: base fee (5000 lamports) + priority fee
   // Priority fee = COMPUTE_UNIT_LIMIT * PRIORITY_MICRO_LAMPORTS / 1,000,000
-  const estimatedTxFee = 5_000 + Math.ceil((COMPUTE_UNIT_LIMIT * PRIORITY_MICRO_LAMPORTS) / 1_000_000);
+  const priorityFeePerTx = Math.ceil((COMPUTE_UNIT_LIMIT * PRIORITY_MICRO_LAMPORTS) / 1_000_000);
+  const estimatedTxFee = 5_000 + priorityFeePerTx;
   const minRequiredBalance = estimatedTxFee * batches.length; // Need enough for all transactions
+  
+  console.info(`[burn] Estimated tx fee per batch: ${estimatedTxFee} lamports (${batches.length} batches = ${minRequiredBalance} total)`);
+  console.info(`[burn] Wallet must keep ${WALLET_RENT_EXEMPT} lamports for rent exemption`);
   
   // Charge exactly FEE_BPS (1%) of the COMBINED rent of every selected asset —
   // tokens and NFTs alike. Burns are split across several transactions, so we
@@ -159,15 +165,25 @@ export async function buildBurnTransactions(
   // Calculate total fees we'll charge across all batches
   const totalFeesToCharge = batchFees.reduce((sum, f) => sum + f, 0);
   
-  // If wallet doesn't have enough SOL for transaction fees + platform fees, skip platform fees
-  // The user will still reclaim rent, just won't pay the 1% platform fee
-  const canAffordFees = walletBalance >= (minRequiredBalance + totalFeesToCharge);
+  // Wallet must have enough for: rent exemption + transaction fees + platform fees
+  const totalRequired = WALLET_RENT_EXEMPT + minRequiredBalance + totalFeesToCharge;
+  const canAffordFees = walletBalance >= totalRequired;
   const actualFee = canAffordFees ? totalFee : 0;
   
   if (!canAffordFees && FEE_ENABLED) {
     console.info(
-      `[burn] Wallet has ${walletBalance} lamports, needs ${minRequiredBalance + totalFeesToCharge}. ` +
+      `[burn] Wallet has ${walletBalance} lamports, needs ${totalRequired} (${WALLET_RENT_EXEMPT} rent + ${minRequiredBalance} tx + ${totalFeesToCharge} fee). ` +
       `Skipping platform fee to allow burn to proceed.`
+    );
+  }
+  
+  // Final safety check: ensure wallet will have rent-exempt minimum after transaction fees
+  if (walletBalance < WALLET_RENT_EXEMPT + minRequiredBalance) {
+    throw new Error(
+      `Insufficient SOL for transaction. ` +
+      `Your wallet needs at least ${((WALLET_RENT_EXEMPT + minRequiredBalance) / 1e9).toFixed(6)} SOL ` +
+      `(${WALLET_RENT_EXEMPT + minRequiredBalance} lamports) but has ${(walletBalance / 1e9).toFixed(6)} SOL ` +
+      `(${walletBalance} lamports). Please add more SOL to your wallet.`
     );
   }
 
