@@ -6,6 +6,7 @@ import { useBurn } from './hooks/useBurn';
 import { AssetRow } from './components/AssetRow';
 import { BurnSummary } from './components/BurnSummary';
 import { ResultModal } from './components/ResultModal';
+import { WalletErrorToast } from './components/WalletErrorToast';
 import { FEE_ENABLED, DAS_CAPABLE, FEE_BPS } from './lib/config';
 import type { BurnAsset } from './lib/types';
 
@@ -19,9 +20,13 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function App() {
-  const { connected } = useWallet();
+  const { connected, wallets } = useWallet();
   const { assets, loading, error: loadError, refresh } = useAssets();
   const { burn, status, error: burnError, result, reset, busy } = useBurn();
+
+  // Wallet Standard populates `wallets` with every detected wallet. Empty means
+  // no Solana wallet is installed in this browser (e.g. plain Chrome).
+  const hasWallet = wallets.length > 0;
 
   const [tab, setTab] = useState<Tab>('tokens');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -100,8 +105,25 @@ export default function App() {
               Every token account on Solana locks ~0.002 SOL in rent. Burn the worthless dust and
               NFTs cluttering your wallet and reclaim that SOL — minus a {FEE_BPS / 100}% fee.
             </p>
-            <WalletMultiButton />
-            <p className="hero-note">Non-custodial. You sign every transaction. We never touch your keys.</p>
+            {hasWallet ? (
+              <>
+                <WalletMultiButton />
+                <p className="hero-note">Non-custodial. You sign every transaction. We never touch your keys.</p>
+              </>
+            ) : (
+              <div className="hero-install">
+                <p className="hero-install-title">No Solana wallet detected in this browser</p>
+                <div className="install-links">
+                  <a href="https://phantom.app/download" target="_blank" rel="noreferrer">Phantom</a>
+                  <a href="https://solflare.com/download" target="_blank" rel="noreferrer">Solflare</a>
+                  <a href="https://backpack.app/downloads" target="_blank" rel="noreferrer">Backpack</a>
+                </div>
+                <p className="hero-note">
+                  Install one of these extensions and reload — or on mobile, open this page inside your
+                  wallet app’s built-in browser.
+                </p>
+              </div>
+            )}
           </section>
         ) : (
           <div className="workspace">
@@ -176,6 +198,7 @@ export default function App() {
       </footer>
 
       <ResultModal result={result} error={burnError} onClose={closeModal} />
+      <WalletErrorToast />
     </div>
   );
 }

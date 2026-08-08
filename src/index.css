@@ -140,7 +140,7 @@ a:hover { text-decoration: underline; }
 .modal-title { margin: 0 0 10px; font-size: 20px; }
 .modal-title.success { color: var(--green); }
 .modal-title.error { color: var(--danger); }
-.modal-msg { color: var(--muted); font-size: 14px; line-height: 1.5; }
+.modal-msg { color: var(--muted); font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; text-align: left; }
 .modal-sigs { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; }
 .modal-close { margin-top: 8px; padding: 10px 24px; border: 1px solid var(--border); background: var(--bg-elev-2); color: var(--text); border-radius: 10px; cursor: pointer; font-family: inherit; font-weight: 600; }
 
@@ -211,3 +211,32 @@ a:hover { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* Hero: no-wallet install guidance */
+.hero-install { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.hero .hero-install-title { color: var(--text); font-weight: 600; font-size: 15px; margin: 0; }
+.install-links { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.install-links a {
+  background: var(--bg-elev-2); border: 1px solid var(--border);
+  padding: 11px 18px; border-radius: 10px; font-weight: 600; color: var(--text);
+  min-height: 44px; display: inline-flex; align-items: center;
+}
+.install-links a:hover { border-color: var(--flame); text-decoration: none; }
+
+/* Wallet error toast (adapter errors, e.g. no wallet installed / timeout) */
+.wallet-toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 50; display: flex; align-items: center; gap: 12px;
+  max-width: min(560px, calc(100vw - 32px));
+  background: var(--bg-elev-2); border: 1px solid var(--danger);
+  color: var(--text); padding: 14px 16px; border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); font-size: 14px; line-height: 1.45;
+}
+.wallet-toast-icon { flex: none; }
+.wallet-toast-msg { flex: 1; }
+.wallet-toast-close {
+  flex: none; background: none; border: 0; color: var(--muted);
+  font-size: 15px; cursor: pointer; padding: 4px; line-height: 1; min-width: 28px; min-height: 28px;
+}
+.wallet-toast-close:hover { color: var(--text); }

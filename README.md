@@ -52,20 +52,34 @@ src/
 ├── main.tsx              Wallet-adapter providers (ConnectionProvider / WalletProvider)
 ├── App.tsx              Layout, tabs, selection state, burn orchestration
 ├── lib/
-│   ├── config.ts        Env parsing: RPC, fee wallet, fee bps
-│   ├── burn.ts          Fetch token accounts + build batched burn+close+fee txs
-│   ├── prices.ts        Jupiter price API (fails soft)
-│   ├── nfts.ts          DAS getAssetBatch metadata enrichment (fails soft)
-│   ├── format.ts        SOL / USD / address formatting
-│   └── types.ts         BurnAsset, BurnResult
+│   ├── config.ts          Env parsing: RPC, fee wallet, fee bps
+│   ├── burn.ts            Fetch token accounts + build batched burn+close+fee txs
+│   ├── prices.ts          Jupiter price API (fails soft)
+│   ├── nfts.ts            DAS getAssetBatch metadata enrichment (fails soft)
+│   ├── mobileWallet.ts    Registers Mobile Wallet Adapter on Android (fails soft)
+│   ├── walletError.ts     Maps adapter errors to friendly messages
+│   ├── walletErrorStore.ts Tiny store bridging provider onError → UI toast
+│   ├── format.ts          SOL / USD / address formatting
+│   └── types.ts           BurnAsset, BurnResult
 ├── hooks/
-│   ├── useAssets.ts     Load + enrich the connected wallet's assets
-│   └── useBurn.ts       Sign / send / confirm burn transactions
+│   ├── useAssets.ts       Load + enrich the connected wallet's assets
+│   └── useBurn.ts         Sign / send / confirm burn transactions
 └── components/
-    ├── AssetRow.tsx     One selectable token/NFT row
-    ├── BurnSummary.tsx  Gross SOL / fee / net you receive
-    └── ResultModal.tsx  Success / error + Solscan links
+    ├── AssetRow.tsx       One selectable token/NFT row
+    ├── BurnSummary.tsx    Gross SOL / fee / net you receive
+    ├── WalletErrorToast.tsx Dismissible wallet-error notice
+    └── ResultModal.tsx    Success / error + Solscan links
 ```
+
+## Wallet support
+
+Wallets are discovered through the [Wallet Standard](https://github.com/wallet-standard/wallet-standard), so any compliant wallet works with no per-wallet code:
+
+- **Desktop** — browser extensions (Phantom, Solflare, Backpack, …) are auto-detected. If none is installed, the landing page shows install links instead of a dead "connect" button.
+- **Android** — the [Mobile Wallet Adapter](https://docs.solanamobile.com/mobile-wallet-adapter/web-installation) (MWA) is registered on page load (`lib/mobileWallet.ts`), so a regular mobile browser like Chrome can hand off signing to a locally-installed native wallet app. No extension required.
+- **iOS** — MWA local association isn't available, so open the page inside your wallet app's built-in browser (Phantom / Solflare both have one); the injected wallet is picked up automatically.
+
+Adapter errors (e.g. selecting a wallet that isn't actually installed, which otherwise surfaces as a cryptic `WalletConnectionError` timeout) are translated to a plain-language toast instead of being dumped to the console.
 
 ## Safety notes
 

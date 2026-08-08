@@ -26,6 +26,7 @@ export function useBurn() {
         setStatus('building');
         const { transactions, blockhash, lastValidBlockHeight, totalReclaim, totalFee } =
           await buildBurnTransactions(publicKey, assets);
+        console.info(`[burn] built ${transactions.length} transaction(s); requesting wallet signature`);
 
         const signatures: string[] = [];
 
@@ -63,7 +64,16 @@ export function useBurn() {
         setStatus('done');
         return res;
       } catch (e: any) {
-        setError(e?.message ?? 'Burn failed');
+        // Solana's useful failure detail lives in `logs`, not `message` (which is
+        // often a bare "Transaction simulation failed"). Surface both so a burn
+        // that "does nothing" actually tells you why.
+        console.error('[burn] failed', e);
+        let msg = e?.message ?? 'Burn failed';
+        const logs: string[] | undefined = e?.logs;
+        if (Array.isArray(logs) && logs.length) {
+          msg += `\n\n${logs.slice(-4).join('\n')}`;
+        }
+        setError(msg);
         setStatus('error');
         return null;
       }
