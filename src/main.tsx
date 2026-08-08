@@ -23,7 +23,11 @@ function Root() {
   // Handle adapter errors ourselves instead of letting the adapter dump the raw
   // error object to the console (the cryptic `_events`/`readyStateChange` blob).
   const onError = useCallback((err: unknown) => {
-    console.warn('[wallet]', err);
+    // Only log errors that aren't user rejections
+    const errMsg = String(err);
+    if (!/user rejected|request rejected|rejected the request|user declined/i.test(errMsg)) {
+      console.warn('[wallet]', err);
+    }
     walletErrorStore.set(translateWalletError(err));
   }, []);
 

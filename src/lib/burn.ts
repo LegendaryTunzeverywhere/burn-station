@@ -19,6 +19,7 @@ import {
   FEE_ENABLED,
   MAX_PER_TX,
   PRIORITY_MICRO_LAMPORTS,
+  COMPUTE_UNIT_LIMIT,
 } from './config';
 import type { BurnAsset } from './types';
 
@@ -147,7 +148,14 @@ export async function buildBurnTransactions(
 
   const transactions: Transaction[] = batches.map((batch, i) => {
     const tx = new Transaction();
-    tx.add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: PRIORITY_MICRO_LAMPORTS }));
+    
+    // Set compute budget first - both limit and price
+    tx.add(
+      ComputeBudgetProgram.setComputeUnitLimit({ units: COMPUTE_UNIT_LIMIT })
+    );
+    tx.add(
+      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: PRIORITY_MICRO_LAMPORTS })
+    );
 
     for (const a of batch) {
       const pid = programKey(a.programId);
@@ -163,6 +171,8 @@ export async function buildBurnTransactions(
       tx.add(createCloseAccountInstruction(ata, owner, owner, [], pid));
     }
 
+    // Add fee transfer AFTER burn/close instructions so rent is reclaimed first
+    // This ensures the wallet has enough SOL to pay the fee from the reclaimed rent
     const fee = batchFees[i];
     if (fee > 0 && FEE_WALLET) {
       tx.add(SystemProgram.transfer({ fromPubkey: owner, toPubkey: FEE_WALLET, lamports: fee }));

@@ -26,6 +26,9 @@ export const FEE_ENABLED: boolean = FEE_BPS > 0;
 export const MAX_PER_TX = 6;
 
 /** Priority fee (micro-lamports per compute unit) added to each burn transaction. */
-export const PRIORITY_MICRO_LAMPORTS = 20_000;
+export const PRIORITY_MICRO_LAMPORTS = 100_000;
+
+/** Compute unit limit per transaction to ensure sufficient budget */
+export const COMPUTE_UNIT_LIMIT = 400_000;
 
 export const SOLSCAN_TX = (sig: string) => `https://solscan.io/tx/${sig}`;
