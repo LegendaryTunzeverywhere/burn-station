@@ -83,11 +83,26 @@ export function useBurn() {
         // often a bare "Transaction simulation failed"). Surface both so a burn
         // that "does nothing" actually tells you why.
         console.error('[burn] failed', e);
+        
         let msg = e?.message ?? 'Burn failed';
+        
+        // Handle common error types with user-friendly messages
+        if (/insufficient.*funds/i.test(msg)) {
+          msg = 'Insufficient SOL to complete transaction. Please add at least 0.001 SOL to your wallet.';
+        } else if (/user.*rejected|user.*declined|rejected.*request/i.test(msg)) {
+          msg = 'Transaction was rejected in your wallet.';
+        } else if (/blockhash.*not.*found|transaction.*expired/i.test(msg)) {
+          msg = 'Transaction expired. Please try again.';
+        } else if (/timeout/i.test(msg)) {
+          msg = 'Transaction timed out. Please try again.';
+        }
+        
+        // Append logs if available for debugging
         const logs: string[] | undefined = e?.logs;
-        if (Array.isArray(logs) && logs.length) {
+        if (Array.isArray(logs) && logs.length && import.meta.env.DEV) {
           msg += `\n\n${logs.slice(-4).join('\n')}`;
         }
+        
         setError(msg);
         setStatus('error');
         return null;

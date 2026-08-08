@@ -8,8 +8,12 @@ import { RPC_URL } from './lib/config';
 import { translateWalletError } from './lib/walletError';
 import { walletErrorStore } from './lib/walletErrorStore';
 import { registerMobileWallet } from './lib/mobileWallet';
+import { installConsoleFilters } from './lib/consoleFilter';
 import App from './App';
 import './index.css';
+
+// Install console filters to suppress noisy wallet extension warnings
+installConsoleFilters();
 
 // Register the Mobile Wallet Adapter (Android) so regular mobile browsers can
 // sign via a native wallet app. No-op on desktop/iOS. Must run before render.
