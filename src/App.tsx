@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useAssets } from './hooks/useAssets';
@@ -7,7 +7,7 @@ import { AssetRow } from './components/AssetRow';
 import { BurnSummary } from './components/BurnSummary';
 import { ResultModal } from './components/ResultModal';
 import { WalletErrorToast } from './components/WalletErrorToast';
-import { FEE_ENABLED, DAS_CAPABLE, FEE_BPS } from './lib/config';
+import { FEE_BPS } from './lib/config';
 import type { BurnAsset } from './lib/types';
 
 type Tab = 'tokens' | 'nfts';
@@ -30,6 +30,23 @@ export default function App() {
 
   const [tab, setTab] = useState<Tab>('tokens');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Asks the /api/rpc proxy (server-side) whether the configured upstream RPC
+  // is DAS-capable, rather than sniffing the RPC URL client-side — the URL
+  // itself is never sent to the browser now.
+  const [dasCapable, setDasCapable] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/rpc')
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled) setDasCapable(!!d.dasCapable);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const tokens = useMemo(() => assets.filter((a) => !a.isNft), [assets]);
   const nfts = useMemo(() => assets.filter((a) => a.isNft), [assets]);
@@ -89,10 +106,9 @@ export default function App() {
         <WalletMultiButton />
       </header>
 
-      {(!FEE_ENABLED || !DAS_CAPABLE) && (
+      {!dasCapable && (
         <div className="config-banner">
-          {!FEE_ENABLED && <span>⚠️ Platform fee wallet not configured — fee disabled. Set VITE_FEE_WALLET in .env. </span>}
-          {!DAS_CAPABLE && <span>ℹ️ Using a non-DAS RPC — token/NFT names &amp; images may be limited. Add a Helius RPC in .env.</span>}
+          <span>ℹ️ Using a non-DAS RPC — token/NFT names &amp; images may be limited.</span>
         </div>
       )}
 
@@ -162,11 +178,10 @@ export default function App() {
                   {tab === 'nfts' ? (
                     <>
                       <p>No NFTs found in this wallet.</p>
-                      {!DAS_CAPABLE && (
+                      {!dasCapable && (
                         <p className="small muted">
-                          This RPC can't read NFT metadata. Add a DAS-capable RPC (e.g. Helius) in
-                          <code> VITE_RPC_URL</code> to see NFTs with names &amp; images. Compressed
-                          NFTs also require a DAS RPC.
+                          This RPC can't read NFT metadata, so NFT names &amp; images may be
+                          limited. Compressed NFTs also require a DAS-capable RPC.
                         </p>
                       )}
                     </>

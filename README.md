@@ -26,11 +26,14 @@ npm run dev               # local dev server
 
 ### `.env` configuration
 
-| Variable          | Required | Description |
-|-------------------|----------|-------------|
-| `VITE_RPC_URL`    | strongly recommended | A Solana RPC endpoint. The public one is rate-limited and can't serve NFT images. Use a free [Helius](https://helius.dev) key — it also powers token/NFT names & images via the DAS API. |
-| `VITE_FEE_WALLET` | **yes**  | Base58 address that receives the 1% platform fee. If unset, the fee is skipped and a warning is shown. |
-| `VITE_FEE_BPS`    | no       | Fee in basis points. `100` = 1% (default). |
+All browser-facing RPC calls go through the same-origin `/api/rpc` proxy (`api/rpc.ts` on Vercel, a Vite dev-middleware locally) instead of talking to the RPC provider directly — this keeps the RPC URL/API key out of client JS and devtools entirely.
+
+| Variable       | Required | Description |
+|----------------|----------|-------------|
+| `RPC_URL`      | strongly recommended | **Server-side only** (no `VITE_` prefix — never exposed to the browser). A Solana RPC endpoint. The public one is rate-limited and can't serve NFT images. Use a free [Helius](https://helius.dev) key — it also powers token/NFT names & images via the DAS API. In production, set this in Vercel's Environment Variables, not in a committed file. |
+| `VITE_FEE_BPS` | no       | Fee in basis points. `100` = 1% (default). |
+
+The fee-receiving wallet is no longer an env var — it's a public Solana address (not a secret) hardcoded as `FEE_WALLET` in `src/lib/config.ts`.
 
 ## Build & deploy
 

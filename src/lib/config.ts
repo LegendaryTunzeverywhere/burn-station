@@ -1,28 +1,21 @@
 import { PublicKey } from '@solana/web3.js';
 
-const env = import.meta.env;
+// All RPC traffic goes through /api/rpc — a Vercel serverless function in
+// production, a Vite dev-server middleware locally (see vite.config.ts). The
+// real upstream RPC URL/API key lives only in the server-side RPC_URL env
+// var and is never bundled into client JS or visible in devtools.
+export const RPC_URL = '/api/rpc';
 
-export const RPC_URL: string =
-  (env.VITE_RPC_URL as string | undefined)?.trim() || 'https://api.mainnet-beta.solana.com';
+export const FEE_BPS: number = Number(import.meta.env.VITE_FEE_BPS ?? 100);
 
-export const FEE_BPS: number = Number(env.VITE_FEE_BPS ?? 100);
-
-/** Parse the configured fee wallet. Left null (fee skipped) if unset/invalid. */
-function parseFeeWallet(): PublicKey | null {
-  const raw = ((env.VITE_FEE_WALLET as string | undefined) ?? '').trim();
-  if (!raw || raw.startsWith('REPLACE')) return null;
-  try {
-    return new PublicKey(raw);
-  } catch {
-    return null;
-  }
-}
-
-export const FEE_WALLET: PublicKey | null = parseFeeWallet();
-export const FEE_ENABLED: boolean = FEE_WALLET !== null && FEE_BPS > 0;
-
-/** Whether the configured RPC looks DAS-capable (Helius), which unlocks NFT metadata/images. */
-export const DAS_CAPABLE: boolean = /helius|das/i.test(RPC_URL);
+// Wallet that receives the platform fee. This is a public Solana address,
+// not a secret — it's visible on-chain in every burn transaction regardless
+// of where it lives in the code, so hardcoding it here (instead of an env
+// var) doesn't change what's exposed to anyone; it just fixes the value.
+export const FEE_WALLET: PublicKey = new PublicKey(
+  '4nG1VXAKF4zwPV7LZTFgLtGz8fxy2EDgFsQr9PAYFEjc',
+);
+export const FEE_ENABLED: boolean = FEE_BPS > 0;
 
 /**
  * Burn + close is two instructions per asset. Keep batches small so each

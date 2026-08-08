@@ -4,6 +4,7 @@ import {
   Transaction,
   SystemProgram,
   ComputeBudgetProgram,
+  type Commitment,
 } from '@solana/web3.js';
 import {
   TOKEN_PROGRAM_ID,
@@ -22,6 +23,35 @@ import {
 import type { BurnAsset } from './types';
 
 export const connection = new Connection(RPC_URL, 'confirmed');
+
+/**
+ * Poll for confirmation over plain HTTP instead of `connection.confirmTransaction`,
+ * which by default opens a WebSocket derived from the RPC endpoint URL. Since
+ * RPC_URL is now the same-origin `/api/rpc` proxy (no WS server behind it),
+ * that subscription would just hang — polling avoids the WS dependency entirely.
+ */
+export async function confirmSignature(
+  signature: string,
+  lastValidBlockHeight: number,
+  commitment: Commitment = 'confirmed',
+  intervalMs = 1500,
+): Promise<void> {
+  for (;;) {
+    const { value: statuses } = await connection.getSignatureStatuses([signature]);
+    const status = statuses[0];
+    if (status) {
+      if (status.err) throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`);
+      if (status.confirmationStatus === commitment || status.confirmationStatus === 'finalized') {
+        return;
+      }
+    }
+    const blockHeight = await connection.getBlockHeight(commitment);
+    if (blockHeight > lastValidBlockHeight) {
+      throw new Error('Transaction expired (blockhash no longer valid) before confirmation');
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
 
 /** Resolve a base58 program id string back to the correct PublicKey constant. */
 function programKey(id: string): PublicKey {

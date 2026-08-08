@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { connection, buildBurnTransactions } from '../lib/burn';
+import { connection, buildBurnTransactions, confirmSignature } from '../lib/burn';
 import type { BurnAsset, BurnResult } from '../lib/types';
 
 type Status = 'idle' | 'building' | 'signing' | 'sending' | 'confirming' | 'done' | 'error';
@@ -24,7 +24,7 @@ export function useBurn() {
       setResult(null);
       try {
         setStatus('building');
-        const { transactions, blockhash, lastValidBlockHeight, totalReclaim, totalFee } =
+        const { transactions, lastValidBlockHeight, totalReclaim, totalFee } =
           await buildBurnTransactions(publicKey, assets);
         console.info(`[burn] built ${transactions.length} transaction(s); requesting wallet signature`);
 
@@ -54,9 +54,7 @@ export function useBurn() {
 
         setStatus('confirming');
         await Promise.all(
-          signatures.map((signature) =>
-            connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed'),
-          ),
+          signatures.map((signature) => confirmSignature(signature, lastValidBlockHeight)),
         );
 
         const res: BurnResult = { signatures, reclaimedLamports: totalReclaim, feeLamports: totalFee };
