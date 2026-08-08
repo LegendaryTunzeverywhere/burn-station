@@ -1,0 +1,29 @@
+11:08:17.574 Running build in Washington, D.C., USA (East) – iad1
+11:08:17.574 Build machine configuration: 2 cores, 8 GB
+11:08:17.693 Cloning github.com/LegendaryTunzeverywhere/burn-station (Branch: main, Commit: f844ee8)
+11:08:17.695 Previous build caches not available.
+11:08:18.117 Cloning completed: 423.000ms
+11:08:18.422 Running "vercel build"
+11:08:18.446 Vercel CLI 58.1.0
+11:08:18.952 Installing dependencies...
+11:08:20.394 npm warn ERESOLVE overriding peer dependency
+11:08:20.395 npm warn While resolving: react-native@0.86.2
+11:08:20.395 npm warn Found: react@18.3.1
+11:08:20.395 npm warn node_modules/react
+11:08:20.395 npm warn   react@"^18.3.1" from the root project
+11:08:20.395 npm warn   6 more (@solana/wallet-adapter-base-ui, ...)
+11:08:20.395 npm warn
+11:08:20.395 npm warn Could not resolve dependency:
+11:08:20.395 npm warn peer react@"^19.2.3" from react-native@0.86.2
+11:08:20.395 npm warn node_modules/@solana/wallet-adapter-react/node_modules/react-native
+11:08:20.396 npm warn   peer react-native@"^0.0.0-0 || >=0.60 <1.0" from @react-native-async-storage/async-storage@1.24.0
+11:08:20.396 npm warn   node_modules/@solana/wallet-adapter-react/node_modules/@react-native-async-storage/async-storage
+11:08:20.396 npm warn   3 more (@solana-mobile/mobile-wallet-adapter-protocol, ...)
+11:08:20.396 npm warn
+11:08:20.396 npm warn Conflicting peer dependency: react@19.2.8
+11:08:20.396 npm warn node_modules/react
+11:08:20.396 npm warn   peer react@"^19.2.3" from react-native@0.86.2
+11:08:20.396 npm warn   node_modules/@solana/wallet-adapter-react/node_modules/react-native
+11:08:20.396 npm warn     peer react-native@"^0.0.0-0 || >=0.60 <1.0" from @react-native-async-storage/async-storage@1.24.0
+11:08:20.396 npm warn     node_modules/@solana/wallet-adapter-react/node_modules/@react-native-async-storage/async-storage
+11:08:20.396 npm warn     3 more (@solana-mobile/mobile-wallet-adapter-protocol, ...)
