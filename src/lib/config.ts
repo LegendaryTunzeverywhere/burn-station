@@ -4,7 +4,9 @@ import { PublicKey } from '@solana/web3.js';
 // production, a Vite dev-server middleware locally (see vite.config.ts). The
 // real upstream RPC URL/API key lives only in the server-side RPC_URL env
 // var and is never bundled into client JS or visible in devtools.
-export const RPC_URL = '/api/rpc';
+export const RPC_URL = typeof window !== 'undefined' 
+  ? `${window.location.origin}/api/rpc`
+  : '/api/rpc';
 
 export const FEE_BPS: number = Number(import.meta.env.VITE_FEE_BPS ?? 100);
 
