@@ -131,6 +131,8 @@ export async function buildBurnTransactions(
   // Check wallet SOL balance to determine if we can charge fees
   const walletBalance = await connection.getBalance(owner);
   
+  console.info(`[burn] Wallet balance: ${walletBalance} lamports (${(walletBalance / 1e9).toFixed(4)} SOL)`);
+  
   // Estimate transaction fee: base fee (5000 lamports) + priority fee
   // Priority fee = COMPUTE_UNIT_LIMIT * PRIORITY_MICRO_LAMPORTS / 1,000,000
   const estimatedTxFee = 5_000 + Math.ceil((COMPUTE_UNIT_LIMIT * PRIORITY_MICRO_LAMPORTS) / 1_000_000);
@@ -202,6 +204,12 @@ export async function buildBurnTransactions(
 
     tx.feePayer = owner;
     tx.recentBlockhash = blockhash;
+    
+    console.info(
+      `[burn] Transaction ${i + 1}: ${batch.length} assets, ` +
+      `fee=${fee} lamports, reclaim=${batch.reduce((s, a) => s + a.lamports, 0)} lamports`
+    );
+    
     return tx;
   });
 

@@ -8,6 +8,11 @@ export const RPC_URL = typeof window !== 'undefined'
   ? `${window.location.origin}/api/rpc`
   : '/api/rpc';
 
+// Log RPC URL on client for debugging
+if (typeof window !== 'undefined') {
+  console.info(`[config] RPC endpoint: ${RPC_URL}`);
+}
+
 export const FEE_BPS: number = Number(import.meta.env.VITE_FEE_BPS ?? 100);
 
 // Wallet that receives the platform fee. This is a public Solana address,
