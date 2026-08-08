@@ -38,8 +38,8 @@ export function useBurn() {
             setStatus('sending');
             for (const tx of signed) {
               const sig = await connection.sendRawTransaction(tx.serialize(), {
-                skipPreflight: false,
-                preflightCommitment: 'confirmed',
+                skipPreflight: true, // Skip preflight since rent is reclaimed during tx execution
+                maxRetries: 2,
               });
               signatures.push(sig);
             }
@@ -55,7 +55,8 @@ export function useBurn() {
             setStatus('sending');
             try {
               const sig = await sendTransaction(tx, connection, {
-                preflightCommitment: 'confirmed',
+                skipPreflight: true, // Skip preflight since rent is reclaimed during tx execution
+                maxRetries: 2,
               });
               signatures.push(sig);
             } catch (sendError: any) {
