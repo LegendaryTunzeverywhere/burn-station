@@ -1,0 +1,19 @@
+Contact: https://github.com/LegendaryTunzeverywhere/burn-station/issues
+Preferred-Languages: en
+Canonical: https://burn-station.vercel.app/security.txt
+
+# About Burn Station
+This is a legitimate open-source dApp for burning Solana tokens and reclaiming rent.
+
+# Security
+- Non-custodial: Your private keys never leave your wallet
+- All transactions require explicit user approval
+- Source code: https://github.com/LegendaryTunzeverywhere/burn-station
+- All RPC calls are proxied server-side to protect API keys
+
+# Platform Fee
+- 1% of reclaimed rent goes to platform maintenance
+- Fee is clearly shown before transaction approval
+- Fee wallet: 4nG1VXAKF4zwPV7LZTFgLtGz8fxy2EDgFsQr9PAYFEjc
+
+If you have security concerns, please open an issue on GitHub.
