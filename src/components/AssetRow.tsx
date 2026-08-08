@@ -33,7 +33,7 @@ function AssetRowInner({ asset, selected, onToggle }: Props) {
         )}
       </div>
 
-      <div className="asset-main">
+      <div className="asset-info">
         <div className="asset-title">
           <span className="asset-name">{title}</span>
           {asset.isNft && <span className="badge badge-nft">NFT</span>}
@@ -57,22 +57,24 @@ function AssetRowInner({ asset, selected, onToggle }: Props) {
         </div>
       </div>
 
-      <div className="asset-value">
-        {asset.isNft ? (
-          <span className="muted">NFT</span>
-        ) : asset.priceUsd != null ? (
-          <>
-            <span className={valuable ? 'value-warn' : ''}>{fmtUsd(asset.valueUsd)}</span>
-            <span className="muted small">{fmtUsd(asset.priceUsd)}/ea</span>
-          </>
-        ) : (
-          <span className="muted">no market</span>
-        )}
-      </div>
+      <div className="asset-figures">
+        <div className="asset-value">
+          {asset.isNft ? (
+            <span className="muted">NFT</span>
+          ) : asset.priceUsd != null ? (
+            <>
+              <span className={valuable ? 'value-warn' : ''}>{fmtUsd(asset.valueUsd)}</span>
+              <span className="muted small">{fmtUsd(asset.priceUsd)}/ea</span>
+            </>
+          ) : (
+            <span className="muted">no market</span>
+          )}
+        </div>
 
-      <div className="asset-rent">
-        <span className="rent-amount">+{fmtSol(asset.lamports)} SOL</span>
-        <span className="muted small">rent back</span>
+        <div className="asset-rent">
+          <span className="rent-amount">+{fmtSol(asset.lamports)} SOL</span>
+          <span className="muted small">rent back</span>
+        </div>
       </div>
     </label>
   );

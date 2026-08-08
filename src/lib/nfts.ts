@@ -3,14 +3,18 @@ import { RPC_URL } from './config';
 /**
  * Metadata enrichment via the DAS (Digital Asset Standard) API — `getAssetBatch`.
  * Works on DAS-capable RPCs (e.g. Helius) for BOTH fungible tokens and NFTs,
- * returning name, symbol and image. Fails soft to an empty map otherwise, so
- * burning still works with a plain RPC (assets just show as their mint address).
+ * returning name, symbol, image, and an authoritative fungible/non-fungible
+ * classification (via the asset `interface`). Fails soft to an empty map, so
+ * burning still works with a plain RPC — assets just fall back to the on-chain
+ * decimals heuristic and show their mint address.
  */
 
 export interface AssetMeta {
   name?: string;
   symbol?: string;
   image?: string;
+  /** From DAS `interface`: true = NFT, false = fungible, undefined = unknown. */
+  isNft?: boolean;
 }
 
 function pickImage(asset: any): string | undefined {
@@ -21,6 +25,16 @@ function pickImage(asset: any): string | undefined {
     const withUri = files.find((f: any) => f?.cdn_uri || f?.uri);
     if (withUri) return withUri.cdn_uri || withUri.uri;
   }
+  const metaImage = asset?.content?.metadata?.image;
+  if (metaImage) return metaImage;
+  return undefined;
+}
+
+/** Classify from the DAS `interface` string. Undefined when unrecognised. */
+function classify(iface?: string): boolean | undefined {
+  if (!iface) return undefined;
+  if (/fungible/i.test(iface)) return false; // FungibleToken / FungibleAsset
+  if (/nft|print|mplcoreasset/i.test(iface)) return true; // V1_NFT, ProgrammableNFT, V1_PRINT, MplCoreAsset…
   return undefined;
 }
 
@@ -57,6 +71,7 @@ export async function fetchAssetMeta(mints: string[]): Promise<Record<string, As
             name: md?.name || undefined,
             symbol: md?.symbol || asset.token_info?.symbol || undefined,
             image: pickImage(asset),
+            isNft: classify(asset.interface),
           };
         }
       } catch {

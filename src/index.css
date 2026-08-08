@@ -56,7 +56,6 @@ a:hover { text-decoration: underline; }
 
 /* Workspace layout */
 .workspace { display: grid; grid-template-columns: 1fr 320px; gap: 22px; align-items: start; }
-@media (max-width: 860px) { .workspace { grid-template-columns: 1fr; } }
 
 .list-panel { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 
@@ -83,24 +82,29 @@ a:hover { text-decoration: underline; }
 /* Asset list */
 .asset-list { max-height: 62vh; overflow-y: auto; }
 .asset-row {
-  display: grid; grid-template-columns: auto 42px 1fr auto auto; gap: 12px; align-items: center;
+  display: grid;
+  grid-template-columns: auto 42px 1fr auto auto;
+  grid-template-areas: "check thumb info value rent";
+  gap: 12px; align-items: center;
   padding: 11px 14px; border-top: 1px solid var(--border); cursor: pointer; transition: background 0.12s;
 }
 .asset-row:hover { background: var(--bg-elev-2); }
 .asset-row.is-selected { background: rgba(255, 107, 44, 0.08); }
-.asset-check { width: 17px; height: 17px; accent-color: var(--flame); cursor: pointer; }
+.asset-check { grid-area: check; width: 20px; height: 20px; accent-color: var(--flame); cursor: pointer; flex-shrink: 0; }
 .asset-thumb {
-  width: 42px; height: 42px; border-radius: 9px; overflow: hidden; background: var(--bg-elev-2);
+  grid-area: thumb; width: 42px; height: 42px; border-radius: 9px; overflow: hidden; background: var(--bg-elev-2);
   display: flex; align-items: center; justify-content: center;
 }
 .asset-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .asset-thumb-fallback { font-size: 20px; }
-.asset-main { min-width: 0; }
+.asset-info { grid-area: info; min-width: 0; }
 .asset-title { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 .asset-name { font-weight: 600; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
-.asset-sub { font-size: 12px; color: var(--muted); margin-top: 2px; display: flex; gap: 6px; }
-.asset-value { text-align: right; display: flex; flex-direction: column; font-size: 13.5px; }
-.asset-rent { text-align: right; display: flex; flex-direction: column; }
+.asset-sub { font-size: 12px; color: var(--muted); margin-top: 2px; display: flex; gap: 6px; flex-wrap: wrap; }
+/* On wide screens value + rent sit in their own grid columns; the wrapper is transparent. */
+.asset-figures { display: contents; }
+.asset-value { grid-area: value; text-align: right; display: flex; flex-direction: column; font-size: 13.5px; }
+.asset-rent { grid-area: rent; text-align: right; display: flex; flex-direction: column; }
 .rent-amount { color: var(--green); font-weight: 600; font-size: 13.5px; white-space: nowrap; }
 .value-warn { color: var(--flame-2); font-weight: 600; }
 .muted { color: var(--muted); }
@@ -145,3 +149,65 @@ a:hover { text-decoration: underline; }
 /* Wallet adapter button theming */
 .wallet-adapter-button { background: linear-gradient(135deg, var(--flame), var(--flame-2)) !important; font-family: var(--font) !important; height: 40px !important; border-radius: 10px !important; font-weight: 700 !important; }
 .wallet-adapter-button:not([disabled]):hover { background: linear-gradient(135deg, var(--flame-2), var(--flame)) !important; }
+
+/* ============================================================
+   Responsive — mobile & desktop friendly
+   ============================================================ */
+
+/* Honour iOS safe areas (notch / home indicator) when viewport-fit=cover */
+.header { padding-left: max(24px, env(safe-area-inset-left)); padding-right: max(24px, env(safe-area-inset-right)); }
+.content { padding-left: max(24px, env(safe-area-inset-left)); padding-right: max(24px, env(safe-area-inset-right)); }
+
+/* Tablet / small laptop — sidebar drops below and becomes a pinned action bar */
+@media (max-width: 860px) {
+  .workspace { grid-template-columns: 1fr; gap: 16px; }
+
+  .summary {
+    position: sticky; top: auto; bottom: 0; z-index: 20;
+    border-radius: var(--radius) var(--radius) 0 0;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45);
+    max-height: 72vh; overflow-y: auto;
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+  }
+  /* Let the list scroll with the page rather than nesting a second scrollbar */
+  .asset-list { max-height: none; }
+}
+
+/* Phone — reflow asset rows and tighten chrome */
+@media (max-width: 600px) {
+  .content { padding-top: 16px; padding-bottom: 16px; }
+  .header { padding-top: 14px; padding-bottom: 14px; gap: 10px; }
+  .brand-mark { font-size: 26px; }
+  .brand h1 { font-size: 18px; }
+  .brand-tag { display: none; }
+  .config-banner { padding-left: 16px; padding-right: 16px; }
+
+  .hero { padding: 40px 16px; }
+  .hero-flame { font-size: 56px; }
+  .hero h2 { font-size: 26px; }
+  .hero p { font-size: 14.5px; }
+
+  /* Value + rent wrap onto a second line, aligned under the name */
+  .asset-row {
+    grid-template-columns: auto 42px minmax(0, 1fr);
+    grid-template-areas:
+      "check thumb info"
+      "check thumb figures";
+    row-gap: 6px; column-gap: 12px; padding: 12px 14px;
+  }
+  .asset-figures { display: flex; grid-area: figures; gap: 22px; align-items: flex-end; }
+  .asset-value, .asset-rent { text-align: left; }
+  .asset-name { max-width: 62vw; }
+
+  /* Comfortable touch targets */
+  .tab { padding: 9px 13px; }
+  .chip { padding: 8px 14px; }
+  .link-btn { padding: 8px 4px; }
+
+  .summary { padding: 16px; }
+  .summary-note { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}

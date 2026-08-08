@@ -136,7 +136,22 @@ export default function App() {
               ) : loadError ? (
                 <div className="state-msg error">{loadError}</div>
               ) : visible.length === 0 ? (
-                <div className="state-msg">No {tab} found in this wallet.</div>
+                <div className="state-msg">
+                  {tab === 'nfts' ? (
+                    <>
+                      <p>No NFTs found in this wallet.</p>
+                      {!DAS_CAPABLE && (
+                        <p className="small muted">
+                          This RPC can't read NFT metadata. Add a DAS-capable RPC (e.g. Helius) in
+                          <code> VITE_RPC_URL</code> to see NFTs with names &amp; images. Compressed
+                          NFTs also require a DAS RPC.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p>No tokens found in this wallet.</p>
+                  )}
+                </div>
               ) : (
                 <div className="asset-list">
                   {visible.map((a: BurnAsset) => (

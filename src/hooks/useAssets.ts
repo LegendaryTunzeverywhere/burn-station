@@ -31,13 +31,17 @@ export function useAssets() {
       const enriched: BurnAsset[] = base.map((a) => {
         const price = prices[a.mint];
         const m = meta[a.mint];
+        // DAS classification is authoritative when present; fall back to the
+        // on-chain decimals heuristic set in fetchTokenAccounts otherwise.
+        const isNft = m?.isNft ?? a.isNft;
         return {
           ...a,
+          isNft,
           name: m?.name,
           symbol: m?.symbol,
           image: m?.image,
-          priceUsd: price ?? null,
-          valueUsd: price != null ? price * a.uiAmount : null,
+          priceUsd: isNft ? null : price ?? null,
+          valueUsd: !isNft && price != null ? price * a.uiAmount : null,
         };
       });
 
