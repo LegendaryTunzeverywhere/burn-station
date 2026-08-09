@@ -3,7 +3,7 @@ import { PublicKey } from '@solana/web3.js';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { fetchTokenAccounts } from '../lib/burn';
 import { fetchPrices } from '../lib/prices';
-import { fetchAssetMeta } from '../lib/nfts';
+import { fetchAssetMeta, fetchCompressedNfts } from '../lib/nfts';
 import type { BurnAsset } from '../lib/types';
 
 interface State {
@@ -19,16 +19,21 @@ export function useAssets() {
   const load = useCallback(async (owner: PublicKey) => {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
-      const base = await fetchTokenAccounts(owner);
+      const [classic, compressed] = await Promise.all([
+        fetchTokenAccounts(owner),
+        fetchCompressedNfts(owner.toBase58()),
+      ]);
 
       // Enrich in parallel; both are best-effort and must not break the list.
-      const mints = base.map((a) => a.mint);
+      // Compressed NFTs already carry their metadata from getAssetsByOwner —
+      // only the classic accounts need the separate price/metadata lookups.
+      const mints = classic.map((a) => a.mint);
       const [prices, meta] = await Promise.all([
-        fetchPrices(base.filter((a) => !a.isNft).map((a) => a.mint)),
+        fetchPrices(classic.filter((a) => !a.isNft).map((a) => a.mint)),
         fetchAssetMeta(mints),
       ]);
 
-      const enriched: BurnAsset[] = base.map((a) => {
+      const enrichedClassic: BurnAsset[] = classic.map((a) => {
         const price = prices[a.mint];
         const m = meta[a.mint];
         // DAS classification is authoritative when present; fall back to the
@@ -44,6 +49,8 @@ export function useAssets() {
           valueUsd: !isNft && price != null ? price * a.uiAmount : null,
         };
       });
+
+      const enriched = [...enrichedClassic, ...compressed];
 
       // Sort: highest known USD value first, then by rent, so risky burns stand out.
       enriched.sort((x, y) => (y.valueUsd ?? 0) - (x.valueUsd ?? 0) || y.lamports - x.lamports);

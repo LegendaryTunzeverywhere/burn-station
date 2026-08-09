@@ -68,7 +68,7 @@ export default function App() {
   const selectAllVisible = useCallback(() => {
     setSelected((prev) => {
       const next = new Set(prev);
-      visible.forEach((a) => next.add(a.pubkey));
+      visible.filter((a) => !a.isCompressed).forEach((a) => next.add(a.pubkey));
       return next;
     });
   }, [visible]);
@@ -76,7 +76,7 @@ export default function App() {
   const selectEmpty = useCallback(() => {
     setSelected((prev) => {
       const next = new Set(prev);
-      visible.filter((a) => a.uiAmount === 0).forEach((a) => next.add(a.pubkey));
+      visible.filter((a) => !a.isCompressed && a.uiAmount === 0).forEach((a) => next.add(a.pubkey));
       return next;
     });
   }, [visible]);

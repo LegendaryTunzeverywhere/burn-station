@@ -90,6 +90,9 @@ a:hover { text-decoration: underline; }
 }
 .asset-row:hover { background: var(--bg-elev-2); }
 .asset-row.is-selected { background: rgba(255, 107, 44, 0.08); }
+.asset-row.is-disabled { cursor: default; opacity: 0.55; }
+.asset-row.is-disabled:hover { background: none; }
+.asset-check:disabled { cursor: default; opacity: 0.5; }
 .asset-check { grid-area: check; width: 20px; height: 20px; accent-color: var(--flame); cursor: pointer; flex-shrink: 0; }
 .asset-thumb {
   grid-area: thumb; width: 42px; height: 42px; border-radius: 9px; overflow: hidden; background: var(--bg-elev-2);

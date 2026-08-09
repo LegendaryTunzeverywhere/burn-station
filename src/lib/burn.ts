@@ -125,6 +125,12 @@ export async function buildBurnTransactions(
   owner: PublicKey,
   assets: BurnAsset[],
 ): Promise<BuiltBurn> {
+  if (assets.some((a) => a.isCompressed)) {
+    throw new Error(
+      'Compressed NFTs can\'t be burned here — they need a Merkle-proof instruction this app doesn\'t support yet. Deselect them and try again.',
+    );
+  }
+
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
   const batches = chunk(assets, MAX_PER_TX);
 

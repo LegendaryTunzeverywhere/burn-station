@@ -15,6 +15,14 @@ export interface BurnAsset {
   lamports: number;
   /** Heuristic + metadata classification. */
   isNft: boolean;
+  /**
+   * Compressed NFT (Bubblegum/DAS) — has no SPL token account, so `pubkey`/
+   * `mint` are both the DAS asset id and `lamports` is always 0: there is no
+   * per-asset rent to reclaim, and burning it requires a Merkle proof via a
+   * different instruction than classic burn+close. Not selectable for burn
+   * in this app yet — shown so it's not silently invisible.
+   */
+  isCompressed?: boolean;
   /** Enriched metadata (best-effort). */
   name?: string;
   symbol?: string;

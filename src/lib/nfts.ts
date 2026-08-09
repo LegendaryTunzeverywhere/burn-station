@@ -1,4 +1,5 @@
 import { RPC_URL } from './config';
+import type { BurnAsset } from './types';
 
 /**
  * Metadata enrichment via the DAS (Digital Asset Standard) API — `getAssetBatch`.
@@ -79,6 +80,71 @@ export async function fetchAssetMeta(mints: string[]): Promise<Record<string, As
       }
     }),
   );
+
+  return out;
+}
+
+/**
+ * Compressed NFTs (Bubblegum) have no SPL token account — `getParsedTokenAccountsByOwner`
+ * (used in burn.ts) will never see them, since they live as leaves in a shared
+ * Merkle tree rather than individual accounts. The only way to discover them is
+ * DAS `getAssetsByOwner`. Requires a DAS-capable RPC; fails soft to an empty
+ * list otherwise (same convention as fetchAssetMeta above) so a plain RPC just
+ * shows nothing extra instead of erroring.
+ *
+ * Returned as BurnAsset-shaped rows with `isCompressed: true` and `lamports: 0`
+ * — there's no per-asset rent to reclaim (the tree's rent is shared across all
+ * its leaves), and burning a cNFT needs a Merkle-proof instruction this app
+ * doesn't build yet. They're surfaced so they're visible, not so they can be
+ * burned here — the UI should keep them unselectable.
+ */
+export async function fetchCompressedNfts(owner: string): Promise<BurnAsset[]> {
+  const out: BurnAsset[] = [];
+  const PAGE_LIMIT = 1000;
+  let page = 1;
+
+  try {
+    for (;;) {
+      const res = await fetch(RPC_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'burn-station',
+          method: 'getAssetsByOwner',
+          params: { ownerAddress: owner, page, limit: PAGE_LIMIT },
+        }),
+      });
+      if (!res.ok) break;
+      const json = await res.json();
+      const items: any[] = json?.result?.items ?? [];
+      if (items.length === 0) break;
+
+      for (const asset of items) {
+        if (!asset?.compression?.compressed) continue; // this endpoint can also return regular assets
+        if (asset.burnt) continue;
+        out.push({
+          pubkey: asset.id,
+          mint: asset.id,
+          programId: 'compressed',
+          amountRaw: '1',
+          decimals: 0,
+          uiAmount: 1,
+          lamports: 0,
+          isNft: true,
+          isCompressed: true,
+          name: asset.content?.metadata?.name || undefined,
+          symbol: asset.content?.metadata?.symbol || undefined,
+          image: pickImage(asset),
+        });
+      }
+
+      if (items.length < PAGE_LIMIT) break;
+      page += 1;
+    }
+  } catch {
+    /* ignore — DAS not available on this RPC, or the call failed; fail soft */
+  }
 
   return out;
 }
