@@ -213,7 +213,22 @@ export default function App() {
       </main>
 
       <footer className="footer">
-        <span>Burn Station · non-custodial · {FEE_BPS / 100}% platform fee</span>
+        <span>
+          Burn Station · non-custodial · {FEE_BPS / 100}% platform fee
+          {' · '}
+          <a href="https://github.com/LegendaryTunzeverywhere/burn-station" target="_blank" rel="noreferrer">
+            Source
+          </a>
+          {' · '}
+          <a 
+            href="https://solscan.io/account/4nG1VXAKF4zwPV7LZTFgLtGz8fxy2EDgFsQr9PAYFEjc" 
+            target="_blank" 
+            rel="noreferrer"
+            title="Support development"
+          >
+            ☕ Support
+          </a>
+        </span>
       </footer>
 
       <ResultModal result={result} error={burnError} onClose={closeModal} />

@@ -90,3 +90,28 @@ Adapter errors (e.g. selecting a wallet that isn't actually installed, which oth
 - Empty (zero-balance) accounts are pure rent reclaim — use the **"Select empty"** button to clean them up.
 - Every transaction is simulated by the wallet before signing (`preflightCommitment: 'confirmed'`).
 - Compressed NFTs (cNFTs) are **not** included — they hold no reclaimable rent.
+
+
+## Support the Project ☕
+
+If you find Burn Station useful and want to support continued development, consider sending SOL to:
+
+**`4nG1VXAKF4zwPV7LZTFgLtGz8fxy2EDgFsQr9PAYFEjc`**
+
+Your support helps maintain the platform and add new features! 🙏
+
+---
+
+## License
+
+MIT License - feel free to fork and modify!
+
+## Links
+
+- 🌐 **Live App**: [burn-station.vercel.app](https://burn-station.vercel.app)
+- 💻 **Source Code**: [GitHub Repository](https://github.com/LegendaryTunzeverywhere/burn-station)
+- 🐛 **Issues**: [Report bugs or request features](https://github.com/LegendaryTunzeverywhere/burn-station/issues)
+
+---
+
+**Note**: Phantom wallet may show security warnings because this domain is new. This is a legitimate open-source dApp. We're working on getting officially verified.
