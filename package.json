@@ -4,6 +4,12 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Non-custodial Solana dApp to burn SPL / Token-2022 tokens and NFTs and reclaim account rent as SOL.",
+  "license": "MIT",
+  "author": "LegendaryTunzeverywhere",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LegendaryTunzeverywhere/burn-station.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
