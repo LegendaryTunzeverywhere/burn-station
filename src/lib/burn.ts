@@ -131,19 +131,36 @@ export async function buildBurnTransactions(
   // Check wallet SOL balance to determine if we can charge fees
   const walletBalance = await connection.getBalance(owner);
   console.info(`[burn] Wallet balance: ${walletBalance} lamports (${(walletBalance / 1e9).toFixed(4)} SOL)`);
-  
-  // Wallet must maintain rent-exempt minimum (890,880 lamports) after all operations
+
+  // Solana only requires an account's balance to be zero-or-rent-exempt at the
+  // END of a transaction, not mid-transaction — a wallet is free to dip below
+  // the rent-exempt floor while a transaction is executing, as long as it
+  // clears the floor (or hits zero) by the time the transaction finishes. Each
+  // batch here closes token accounts and credits their reclaimed rent back to
+  // the owner BEFORE the platform-fee transfer runs, so the wallet does not
+  // need to hold the rent-exempt minimum up front — only enough to cover the
+  // network fee, which is deducted before any instruction executes.
   const WALLET_RENT_EXEMPT = 890_880;
-  
+
   // Estimate transaction fee: base fee (5000 lamports) + priority fee
   // Priority fee = COMPUTE_UNIT_LIMIT * PRIORITY_MICRO_LAMPORTS / 1,000,000
   const priorityFeePerTx = Math.ceil((COMPUTE_UNIT_LIMIT * PRIORITY_MICRO_LAMPORTS) / 1_000_000);
   const estimatedTxFee = 5_000 + priorityFeePerTx;
   const minRequiredBalance = estimatedTxFee * batches.length; // Need enough for all transactions
-  
+
   console.info(`[burn] Estimated tx fee per batch: ${estimatedTxFee} lamports (${batches.length} batches = ${minRequiredBalance} total)`);
-  console.info(`[burn] Wallet must keep ${WALLET_RENT_EXEMPT} lamports for rent exemption`);
-  
+
+  // The only hard requirement: the wallet must be able to cover the network
+  // fee(s) up front, since fees are deducted before any instruction runs.
+  if (walletBalance < minRequiredBalance) {
+    throw new Error(
+      `Insufficient SOL to cover network fees. ` +
+      `You need at least ${(minRequiredBalance / 1e9).toFixed(6)} SOL ` +
+      `(${minRequiredBalance} lamports) for transaction fees, but your wallet has ` +
+      `${(walletBalance / 1e9).toFixed(6)} SOL (${walletBalance} lamports).`
+    );
+  }
+
   // Charge exactly FEE_BPS (1%) of the COMBINED rent of every selected asset —
   // tokens and NFTs alike. Burns are split across several transactions, so we
   // compute the fee on the grand total once, then distribute it across the
@@ -161,29 +178,23 @@ export async function buildBurnTransactions(
     batchFees[i] += 1;
     remainder -= 1;
   }
-  
+
   // Calculate total fees we'll charge across all batches
   const totalFeesToCharge = batchFees.reduce((sum, f) => sum + f, 0);
-  
-  // Wallet must have enough for: rent exemption + transaction fees + platform fees
-  const totalRequired = WALLET_RENT_EXEMPT + minRequiredBalance + totalFeesToCharge;
-  const canAffordFees = walletBalance >= totalRequired;
+
+  // Only skip the platform fee if it would leave the wallet stranded with a
+  // non-zero, non-rent-exempt balance once the WHOLE transaction settles (fee
+  // paid, accounts closed & rent reclaimed, platform fee sent out) — that's
+  // the actual on-chain invariant, so project the end-of-transaction balance
+  // instead of demanding the rent-exempt buffer exist beforehand.
+  const projectedEndBalance = walletBalance - minRequiredBalance + totalReclaim - totalFeesToCharge;
+  const canAffordFees = projectedEndBalance === 0 || projectedEndBalance >= WALLET_RENT_EXEMPT;
   const actualFee = canAffordFees ? totalFee : 0;
-  
+
   if (!canAffordFees && FEE_ENABLED) {
     console.info(
-      `[burn] Wallet has ${walletBalance} lamports, needs ${totalRequired} (${WALLET_RENT_EXEMPT} rent + ${minRequiredBalance} tx + ${totalFeesToCharge} fee). ` +
-      `Skipping platform fee to allow burn to proceed.`
-    );
-  }
-  
-  // Final safety check: ensure wallet will have rent-exempt minimum after transaction fees
-  if (walletBalance < WALLET_RENT_EXEMPT + minRequiredBalance) {
-    throw new Error(
-      `Insufficient SOL for transaction. ` +
-      `Your wallet needs at least ${((WALLET_RENT_EXEMPT + minRequiredBalance) / 1e9).toFixed(6)} SOL ` +
-      `(${WALLET_RENT_EXEMPT + minRequiredBalance} lamports) but has ${(walletBalance / 1e9).toFixed(6)} SOL ` +
-      `(${walletBalance} lamports). Please add more SOL to your wallet.`
+      `[burn] Projected end balance ${projectedEndBalance} lamports would be stranded below the ` +
+      `${WALLET_RENT_EXEMPT} rent-exempt floor. Skipping platform fee to allow burn to proceed.`
     );
   }
 
