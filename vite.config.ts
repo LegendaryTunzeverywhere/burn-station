@@ -6,15 +6,23 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills';
 // `npm run dev` behaves the same way without needing `vercel dev`. RPC_URL is
 // read here via loadEnv() inside this Node config file only — it never
 // touches import.meta.env, so it can never end up in client-bundled code.
-function rpcProxyPlugin(rpcUrl: string): Plugin {
+function rpcProxyPlugin(rpcUrl: string, usingFallback: boolean): Plugin {
   const dasCapable = /helius|das/i.test(rpcUrl);
+  if (usingFallback) {
+    console.warn(
+      '[vite:rpc-proxy] RPC_URL is not set. Falling back to the public Solana RPC ' +
+      '(api.mainnet-beta.solana.com), which rate-limits aggressively and WILL cause ' +
+      'intermittent "transaction failed" / balance-fetch errors. Set RPC_URL in .env ' +
+      '(and in Vercel Project Settings for production).',
+    );
+  }
   return {
     name: 'burn-station-rpc-proxy',
     configureServer(server) {
       const handler: Connect.NextHandleFunction = async (req: any, res: any) => {
         if (req.method === 'GET') {
           res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ dasCapable }));
+          res.end(JSON.stringify({ dasCapable, usingFallbackRpc: usingFallback }));
           return;
         }
         if (req.method !== 'POST') {
@@ -50,6 +58,7 @@ export default defineConfig(({ mode }) => {
   // only into this Node-side config — RPC_URL still never reaches the client.
   const env = loadEnv(mode, process.cwd(), '');
   const rpcUrl = env.RPC_URL || 'https://api.mainnet-beta.solana.com';
+  const usingFallback = !env.RPC_URL;
 
   return {
     plugins: [
@@ -57,7 +66,7 @@ export default defineConfig(({ mode }) => {
       nodePolyfills({
         globals: { Buffer: true, global: true, process: true },
       }),
-      rpcProxyPlugin(rpcUrl),
+      rpcProxyPlugin(rpcUrl, usingFallback),
     ],
     define: {
       // Some deps reference process.env at module scope.

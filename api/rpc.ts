@@ -11,7 +11,22 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const UPSTREAM = process.env.RPC_URL || 'https://api.mainnet-beta.solana.com';
+const USING_FALLBACK_RPC = !process.env.RPC_URL;
 const DAS_CAPABLE = /helius|das/i.test(UPSTREAM);
+
+if (USING_FALLBACK_RPC) {
+  // Visible in Vercel's Function Logs on every cold start. The public
+  // endpoint is aggressively rate-limited (429s) under any real traffic —
+  // set RPC_URL in Project Settings -> Environment Variables to a
+  // dedicated provider (Helius, QuickNode, etc) to fix intermittent burn
+  // failures caused by this fallback.
+  console.warn(
+    '[api/rpc] RPC_URL is not set. Falling back to the public Solana RPC ' +
+    '(api.mainnet-beta.solana.com), which rate-limits aggressively and WILL ' +
+    'cause intermittent "transaction failed" / balance-fetch errors for real ' +
+    'users. Set RPC_URL in Vercel Project Settings -> Environment Variables.',
+  );
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers for all responses
@@ -28,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Reveals only a boolean — never the upstream URL or API key.
   if (req.method === 'GET') {
     res.setHeader('Cache-Control', 'no-store');
-    return res.status(200).json({ dasCapable: DAS_CAPABLE });
+    return res.status(200).json({ dasCapable: DAS_CAPABLE, usingFallbackRpc: USING_FALLBACK_RPC });
   }
 
   if (req.method !== 'POST') {

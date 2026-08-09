@@ -95,6 +95,8 @@ export function useBurn() {
           msg = 'Transaction expired. Please try again.';
         } else if (/timeout/i.test(msg)) {
           msg = 'Transaction timed out. Please try again.';
+        } else if (/429|too many requests|rate.?limit/i.test(msg)) {
+          msg = 'The Solana RPC endpoint is rate-limiting requests right now. Wait a few seconds and try again — if this keeps happening, the site needs a dedicated RPC provider instead of the public one.';
         }
         
         // Append logs if available for debugging

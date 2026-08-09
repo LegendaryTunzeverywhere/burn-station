@@ -50,7 +50,11 @@ export function useAssets() {
 
       setState({ assets: enriched, loading: false, error: null });
     } catch (e: any) {
-      setState({ assets: [], loading: false, error: e?.message ?? 'Failed to load assets' });
+      let msg = e?.message ?? 'Failed to load assets';
+      if (/429|too many requests|rate.?limit/i.test(msg)) {
+        msg = 'The Solana RPC endpoint is rate-limiting requests right now. Wait a few seconds and hit Refresh — if this keeps happening, the site needs a dedicated RPC provider instead of the public one.';
+      }
+      setState({ assets: [], loading: false, error: msg });
     }
   }, []);
 
