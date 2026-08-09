@@ -134,8 +134,14 @@ export async function buildBurnTransactions(
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
   const batches = chunk(assets, MAX_PER_TX);
 
-  // Check wallet SOL balance to determine if we can charge fees
-  const walletBalance = await connection.getBalance(owner);
+  // Check both the payer's balance (to size fees) and the fee wallet's
+  // balance (see WALLET_RENT_EXEMPT note below — a transfer INTO an
+  // under-funded destination account is just as much a rent-exempt
+  // violation as leaving the source stranded).
+  const [walletBalance, feeWalletBalance] = await Promise.all([
+    connection.getBalance(owner),
+    FEE_WALLET ? connection.getBalance(FEE_WALLET).catch(() => 0) : Promise.resolve(0),
+  ]);
   console.info(`[burn] Wallet balance: ${walletBalance} lamports (${(walletBalance / 1e9).toFixed(4)} SOL)`);
 
   // Solana only requires an account's balance to be zero-or-rent-exempt at the
@@ -146,6 +152,13 @@ export async function buildBurnTransactions(
   // the owner BEFORE the platform-fee transfer runs, so the wallet does not
   // need to hold the rent-exempt minimum up front — only enough to cover the
   // network fee, which is deducted before any instruction executes.
+  //
+  // The SAME invariant applies to the RECEIVING side of any transfer, though:
+  // if FEE_WALLET currently holds 0 SOL (never funded) and we send it a small
+  // fee below the rent-exempt minimum, it ends up with a positive balance
+  // that's still not rent-exempt — which the runtime rejects just as it would
+  // for a stranded sender. That's `InsufficientFundsForRent` on the fee
+  // wallet's account index, not the burner's.
   const WALLET_RENT_EXEMPT = 890_880;
 
   // Estimate transaction fee: base fee (5000 lamports) + priority fee
@@ -186,16 +199,15 @@ export async function buildBurnTransactions(
   }
 
   // Calculate total fees we'll charge across all batches
-  const totalFeesToCharge = batchFees.reduce((sum, f) => sum + f, 0);
+  let totalFeesToCharge = batchFees.reduce((sum, f) => sum + f, 0);
 
-  // Only skip the platform fee if it would leave the wallet stranded with a
+  // Only skip the platform fee if it would leave the WALLET stranded with a
   // non-zero, non-rent-exempt balance once the WHOLE transaction settles (fee
   // paid, accounts closed & rent reclaimed, platform fee sent out) — that's
   // the actual on-chain invariant, so project the end-of-transaction balance
   // instead of demanding the rent-exempt buffer exist beforehand.
   const projectedEndBalance = walletBalance - minRequiredBalance + totalReclaim - totalFeesToCharge;
-  const canAffordFees = projectedEndBalance === 0 || projectedEndBalance >= WALLET_RENT_EXEMPT;
-  const actualFee = canAffordFees ? totalFee : 0;
+  let canAffordFees = projectedEndBalance === 0 || projectedEndBalance >= WALLET_RENT_EXEMPT;
 
   if (!canAffordFees && FEE_ENABLED) {
     console.info(
@@ -203,6 +215,37 @@ export async function buildBurnTransactions(
       `${WALLET_RENT_EXEMPT} rent-exempt floor. Skipping platform fee to allow burn to proceed.`
     );
   }
+
+  // Separately guard the FEE WALLET side of the same invariant. If it's
+  // already rent-exempt, any addition keeps it that way and every batch's
+  // slice is safe as split above. If it isn't (e.g. never funded), a split
+  // per-batch transfer could land a partial fee that's still short of the
+  // floor even when the grand total would clear it — so route the WHOLE fee
+  // through a single instruction (the first batch) instead of splitting it,
+  // guaranteeing one shot at clearing the floor rather than several shots
+  // each too small on their own. If even the full total can't clear it,
+  // there's no way to charge a fee without failing, so skip it entirely.
+  if (canAffordFees && totalFeesToCharge > 0 && feeWalletBalance < WALLET_RENT_EXEMPT) {
+    if (feeWalletBalance + totalFeesToCharge >= WALLET_RENT_EXEMPT) {
+      console.info(
+        `[burn] Fee wallet has ${feeWalletBalance} lamports (below the ${WALLET_RENT_EXEMPT} rent-exempt floor). ` +
+        `Routing the full ${totalFeesToCharge}-lamport fee through a single transfer instead of splitting it across batches.`,
+      );
+      batchFees.fill(0);
+      batchFees[0] = totalFeesToCharge;
+    } else {
+      console.info(
+        `[burn] Fee wallet has ${feeWalletBalance} lamports and this burn's total fee (${totalFeesToCharge}) ` +
+        `still wouldn't clear the ${WALLET_RENT_EXEMPT} rent-exempt floor. Skipping the platform fee — ` +
+        `fund the fee wallet with at least ${WALLET_RENT_EXEMPT} lamports once to enable fee collection.`,
+      );
+      canAffordFees = false;
+      batchFees.fill(0);
+      totalFeesToCharge = 0;
+    }
+  }
+
+  const actualFee = canAffordFees ? totalFee : 0;
 
   const transactions: Transaction[] = batches.map((batch, i) => {
     const tx = new Transaction();
