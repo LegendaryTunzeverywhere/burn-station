@@ -1,15 +1,24 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
+import type { Transaction } from '@solana/web3.js';
 import { connection, buildBurnTransactions, confirmSignature } from '../lib/burn';
 import type { BurnAsset, BurnResult } from '../lib/types';
 
 type Status = 'idle' | 'building' | 'signing' | 'sending' | 'confirming' | 'done' | 'error';
 
 export function useBurn() {
-  const { publicKey, sendTransaction, signAllTransactions } = useWallet();
+  const { publicKey, sendTransaction, signTransaction, signAllTransactions } = useWallet();
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<BurnResult | null>(null);
+  // Synchronous re-entrancy lock. `busy` (React state) already disables the burn
+  // button in the UI, but state updates aren't visible until the next render —
+  // a fast double-tap (common on mobile touchscreens) can fire `burn()` twice
+  // before that lands. Solflare specifically only allows one approval dialog
+  // at a time and errors ("Missing or invalid parameters") if a second request
+  // arrives while the first is still pending, so this guard earns its keep
+  // even though the UI-level guard covers most cases already.
+  const burningRef = useRef(false);
 
   const reset = useCallback(() => {
     setStatus('idle');
@@ -20,6 +29,8 @@ export function useBurn() {
   const burn = useCallback(
     async (assets: BurnAsset[]): Promise<BurnResult | null> => {
       if (!publicKey || assets.length === 0) return null;
+      if (burningRef.current) return null;
+      burningRef.current = true;
       setError(null);
       setResult(null);
       try {
@@ -30,43 +41,63 @@ export function useBurn() {
 
         const signatures: string[] = [];
 
-        // One approval for the whole batch set when the wallet supports it.
-        if (transactions.length > 1 && signAllTransactions) {
-          setStatus('signing');
-          try {
+        const broadcast = (tx: Transaction) =>
+          connection.sendRawTransaction(tx.serialize(), {
+            skipPreflight: true, // Skip preflight since rent is reclaimed during tx execution
+            maxRetries: 2,
+          });
+
+        try {
+          if (transactions.length > 1 && signAllTransactions) {
+            // One approval for the whole batch when the wallet supports it.
+            setStatus('signing');
             const signed = await signAllTransactions(transactions);
             setStatus('sending');
             for (const tx of signed) {
-              const sig = await connection.sendRawTransaction(tx.serialize(), {
-                skipPreflight: true, // Skip preflight since rent is reclaimed during tx execution
-                maxRetries: 2,
-              });
-              signatures.push(sig);
+              signatures.push(await broadcast(tx));
             }
-          } catch (signError: any) {
-            // Handle user rejection gracefully
-            if (/user rejected|rejected/i.test(signError?.message)) {
-              throw new Error('Transaction signing was rejected');
+          } else if (signTransaction) {
+            // Sign ourselves and broadcast with our own connection rather than
+            // calling the wallet adapter's sendTransaction(). That convenience
+            // method (StandardWalletAdapter.sendTransaction, used by every
+            // Wallet Standard wallet incl. Phantom/Solflare/Backpack) derives a
+            // "chain" from our RPC URL and throws immediately — before any
+            // approval UI even opens, with no error message — if the connected
+            // account's self-reported `chains` doesn't include it. That array
+            // isn't populated consistently across every mobile wallet session;
+            // plain signTransaction skips the check entirely and hands the
+            // exact same signed bytes to the exact same broadcast path the
+            // batch branch above already uses, so behavior is identical across
+            // wallets and platforms instead of depending on this metadata.
+            for (const tx of transactions) {
+              setStatus('signing');
+              const signed = await signTransaction(tx);
+              setStatus('sending');
+              signatures.push(await broadcast(signed));
             }
-            throw signError;
+          } else {
+            // Last resort for a wallet that exposes signAndSendTransaction only.
+            for (const tx of transactions) {
+              setStatus('sending');
+              signatures.push(
+                await sendTransaction(tx, connection, { skipPreflight: true, maxRetries: 2 }),
+              );
+            }
           }
-        } else {
-          for (const tx of transactions) {
-            setStatus('sending');
-            try {
-              const sig = await sendTransaction(tx, connection, {
-                skipPreflight: true, // Skip preflight since rent is reclaimed during tx execution
-                maxRetries: 2,
-              });
-              signatures.push(sig);
-            } catch (sendError: any) {
-              // Handle user rejection gracefully
-              if (/user rejected|rejected/i.test(sendError?.message)) {
-                throw new Error('Transaction was rejected');
-              }
-              throw sendError;
-            }
+        } catch (signError: any) {
+          // Handle user rejection gracefully
+          if (/user rejected|rejected/i.test(signError?.message)) {
+            throw new Error('Transaction was rejected in your wallet');
           }
+          // The chain-mismatch failure described above throws with no message
+          // at all, as can a couple of other standard-wallet edge cases — in
+          // every one of them the actionable advice is the same.
+          if (!signError?.message && /^Wallet(SendTransaction|Account|Config)Error$/.test(signError?.name ?? '')) {
+            throw new Error(
+              "Your wallet didn't respond to the request. If it's set to a different network than Mainnet, switch to Mainnet and try again.",
+            );
+          }
+          throw signError;
         }
 
         setStatus('confirming');
@@ -108,9 +139,11 @@ export function useBurn() {
         setError(msg);
         setStatus('error');
         return null;
+      } finally {
+        burningRef.current = false;
       }
     },
-    [publicKey, sendTransaction, signAllTransactions],
+    [publicKey, sendTransaction, signTransaction, signAllTransactions],
   );
 
   return { burn, status, error, result, reset, busy: status !== 'idle' && status !== 'done' && status !== 'error' };
