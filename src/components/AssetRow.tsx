@@ -17,12 +17,11 @@ function AssetRowInner({ asset, selected, onToggle }: Props) {
   const valuable = (asset.valueUsd ?? 0) >= VALUE_WARN_USD;
 
   return (
-    <label className={`asset-row${selected ? ' is-selected' : ''}${asset.isCompressed ? ' is-disabled' : ''}`}>
+    <label className={`asset-row${selected ? ' is-selected' : ''}`}>
       <input
         type="checkbox"
         className="asset-check"
         checked={selected}
-        disabled={asset.isCompressed}
         onChange={() => onToggle(asset.pubkey)}
       />
 
@@ -56,7 +55,7 @@ function AssetRowInner({ asset, selected, onToggle }: Props) {
               · {fmtAmount(asset.uiAmount)} {asset.symbol ?? 'tokens'}
             </span>
           )}
-          {asset.isCompressed && <span className="muted"> · no rent to reclaim, burn not supported yet</span>}
+          {asset.isCompressed && <span className="muted"> · no rent to reclaim (shared tree)</span>}
         </div>
       </div>
 
@@ -76,7 +75,7 @@ function AssetRowInner({ asset, selected, onToggle }: Props) {
 
         <div className="asset-rent">
           {asset.isCompressed ? (
-            <span className="muted small">—</span>
+            <span className="muted small">no rent to reclaim</span>
           ) : (
             <>
               <span className="rent-amount">+{fmtSol(asset.lamports)} SOL</span>

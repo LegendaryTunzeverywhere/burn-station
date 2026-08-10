@@ -35,7 +35,7 @@ export function useBurn() {
       setResult(null);
       try {
         setStatus('building');
-        const { transactions, lastValidBlockHeight, totalReclaim, totalFee } =
+        const { transactions, lastValidBlockHeight, totalReclaim, totalFee, skipped } =
           await buildBurnTransactions(publicKey, assets);
         console.info(`[burn] built ${transactions.length} transaction(s); requesting wallet signature`);
 
@@ -105,7 +105,12 @@ export function useBurn() {
           signatures.map((signature) => confirmSignature(signature, lastValidBlockHeight)),
         );
 
-        const res: BurnResult = { signatures, reclaimedLamports: totalReclaim, feeLamports: totalFee };
+        const res: BurnResult = {
+          signatures,
+          reclaimedLamports: totalReclaim,
+          feeLamports: totalFee,
+          skipped: skipped.length > 0 ? skipped : undefined,
+        };
         setResult(res);
         setStatus('done');
         return res;

@@ -22,6 +22,7 @@ import {
   COMPUTE_UNIT_LIMIT,
 } from './config';
 import type { BurnAsset } from './types';
+import { buildCompressedBurnTransaction } from './compressedBurn';
 
 export const connection = new Connection(RPC_URL, 'confirmed');
 
@@ -114,25 +115,28 @@ export interface BuiltBurn {
   lastValidBlockHeight: number;
   totalReclaim: number;
   totalFee: number;
+  /** Selected assets a transaction couldn't be built for — see BurnResult. */
+  skipped: { label: string; reason: string }[];
 }
 
 /**
- * Build one or more transactions that burn each selected asset and close its
- * account (reclaiming rent to the owner). A proportional platform fee is added
- * per transaction so each transaction is self-contained and atomic.
+ * Build one or more transactions that burn each selected asset. Classic SPL /
+ * Token-2022 accounts (including regular NFTs) are batched several-per-
+ * transaction using burn+close, closing the account and reclaiming its rent.
+ * Compressed NFTs have no account to close — each gets its own transaction
+ * built separately via a Merkle-proof burn instruction (compressedBurn.ts),
+ * since there's nothing to batch and no rent to reclaim from them.
  */
 export async function buildBurnTransactions(
   owner: PublicKey,
   assets: BurnAsset[],
 ): Promise<BuiltBurn> {
-  if (assets.some((a) => a.isCompressed)) {
-    throw new Error(
-      'Compressed NFTs can\'t be burned here — they need a Merkle-proof instruction this app doesn\'t support yet. Deselect them and try again.',
-    );
-  }
+  const classicAssets = assets.filter((a) => !a.isCompressed);
+  const compressedAssets = assets.filter((a) => a.isCompressed);
 
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-  const batches = chunk(assets, MAX_PER_TX);
+  const batches = chunk(classicAssets, MAX_PER_TX);
+  const totalTxCount = batches.length + compressedAssets.length;
 
   // Check both the payer's balance (to size fees) and the fee wallet's
   // balance (see WALLET_RENT_EXEMPT note below — a transfer INTO an
@@ -165,9 +169,12 @@ export async function buildBurnTransactions(
   // Priority fee = COMPUTE_UNIT_LIMIT * PRIORITY_MICRO_LAMPORTS / 1,000,000
   const priorityFeePerTx = Math.ceil((COMPUTE_UNIT_LIMIT * PRIORITY_MICRO_LAMPORTS) / 1_000_000);
   const estimatedTxFee = 5_000 + priorityFeePerTx;
-  const minRequiredBalance = estimatedTxFee * batches.length; // Need enough for all transactions
+  // Every transaction pays this network fee — classic batches AND each
+  // compressed NFT's own transaction alike — so size this against the total
+  // transaction count, not just the classic batch count.
+  const minRequiredBalance = estimatedTxFee * totalTxCount;
 
-  console.info(`[burn] Estimated tx fee per batch: ${estimatedTxFee} lamports (${batches.length} batches = ${minRequiredBalance} total)`);
+  console.info(`[burn] Estimated tx fee: ${estimatedTxFee} lamports (${totalTxCount} transactions = ${minRequiredBalance} total)`);
 
   // The only hard requirement: the wallet must be able to cover the network
   // fee(s) up front, since fees are deducted before any instruction runs.
@@ -180,15 +187,16 @@ export async function buildBurnTransactions(
     );
   }
 
-  // Charge exactly FEE_BPS (1%) of the COMBINED rent of every selected asset —
-  // tokens and NFTs alike. Burns are split across several transactions, so we
-  // compute the fee on the grand total once, then distribute it across the
-  // batches, dropping any rounding remainder onto the first batches. This makes
-  // the on-chain fee equal the total shown in the UI to the lamport, instead of
-  // flooring per batch (which would undercharge). Each batch's slice stays far
-  // below the rent that same batch reclaims, so it's always covered even for a
+  // Charge exactly FEE_BPS (1%) of the COMBINED rent of every selected CLASSIC
+  // asset (compressed ones always contribute 0 — nothing to reclaim from
+  // them). Burns are split across several transactions, so we compute the fee
+  // on the grand total once, then distribute it across the batches, dropping
+  // any rounding remainder onto the first batches. This makes the on-chain
+  // fee equal the total shown in the UI to the lamport, instead of flooring
+  // per batch (which would undercharge). Each batch's slice stays far below
+  // the rent that same batch reclaims, so it's always covered even for a
   // wallet holding almost no SOL.
-  const totalReclaim = assets.reduce((sum, a) => sum + a.lamports, 0);
+  const totalReclaim = classicAssets.reduce((sum, a) => sum + a.lamports, 0);
   const totalFee = feeFor(totalReclaim);
 
   const batchFees = batches.map((b) => feeFor(b.reduce((s, a) => s + a.lamports, 0)));
@@ -289,5 +297,35 @@ export async function buildBurnTransactions(
     return tx;
   });
 
-  return { transactions, blockhash, lastValidBlockHeight, totalReclaim, totalFee: actualFee };
+  // Compressed NFTs: one transaction each, built independently so a proof
+  // fetch failing for one (e.g. it moved/was burned elsewhere since the list
+  // loaded, or a non-DAS RPC) doesn't block the rest of the burn — classic
+  // assets and every other compressed asset still proceed.
+  const compressedResults = await Promise.allSettled(
+    compressedAssets.map((a) => buildCompressedBurnTransaction(owner, a, blockhash)),
+  );
+
+  const skipped: { label: string; reason: string }[] = [];
+  compressedResults.forEach((r, i) => {
+    const a = compressedAssets[i];
+    const label = a.name || a.pubkey;
+    if (r.status === 'fulfilled') {
+      transactions.push(r.value);
+      console.info(`[burn] Compressed NFT "${label}": built burn transaction`);
+    } else {
+      const reason = r.reason?.message ?? String(r.reason);
+      console.warn(`[burn] Compressed NFT "${label}": couldn't build burn transaction — ${reason}`);
+      skipped.push({ label, reason });
+    }
+  });
+
+  if (transactions.length === 0) {
+    throw new Error(
+      skipped.length > 0
+        ? `Couldn't build a burn transaction for any selected asset: ${skipped.map((s) => s.reason).join('; ')}`
+        : 'Nothing selected to burn.',
+    );
+  }
+
+  return { transactions, blockhash, lastValidBlockHeight, totalReclaim, totalFee: actualFee, skipped };
 }

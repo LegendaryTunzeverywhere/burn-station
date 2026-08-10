@@ -13,6 +13,7 @@ interface Props {
 export function BurnSummary({ selected, busy, statusLabel, onBurn }: Props) {
   const count = selected.length;
   const nftCount = selected.filter((a) => a.isNft).length;
+  const compressedCount = selected.filter((a) => a.isCompressed).length;
   const tokenCount = count - nftCount;
   const grossLamports = selected.reduce((s, a) => s + a.lamports, 0);
   const feeLamports = feeFor(grossLamports);
@@ -40,6 +41,15 @@ export function BurnSummary({ selected, busy, statusLabel, onBurn }: Props) {
         <span>SOL rent to reclaim</span>
         <strong>{fmtSol(grossLamports)} SOL</strong>
       </div>
+      {compressedCount > 0 && (
+        <div className="summary-row muted small">
+          <span></span>
+          <span>
+            {compressedCount} compressed NFT{compressedCount === 1 ? '' : 's'} selected — no rent to
+            reclaim from {compressedCount === 1 ? 'it' : 'these'} (shared tree)
+          </span>
+        </div>
+      )}
       <div className="summary-row muted">
         <span>Platform fee ({FEE_ENABLED ? `${feePct}% of total` : 'off'})</span>
         <span>−{fmtSol(feeLamports)} SOL</span>

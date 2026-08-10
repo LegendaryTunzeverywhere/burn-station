@@ -16,6 +16,11 @@
     "preview": "vite preview --host"
   },
   "dependencies": {
+    "@metaplex-foundation/digital-asset-standard-api": "^2.0.0",
+    "@metaplex-foundation/mpl-bubblegum": "^5.0.2",
+    "@metaplex-foundation/umi": "^1.5.1",
+    "@metaplex-foundation/umi-bundle-defaults": "^1.5.1",
+    "@metaplex-foundation/umi-web3js-adapters": "^1.5.1",
     "@solana-mobile/wallet-standard-mobile": "^0.5.3",
     "@solana/spl-token": "^0.4.9",
     "@solana/wallet-adapter-base": "^0.9.23",

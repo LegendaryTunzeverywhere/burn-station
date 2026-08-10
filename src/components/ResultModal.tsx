@@ -35,6 +35,18 @@ export function ResultModal({ result, error, onClose }: Props) {
                   </a>
                 ))}
               </div>
+              {result.skipped && result.skipped.length > 0 && (
+                <div className="modal-skipped">
+                  <p className="modal-skipped-title">Couldn't burn {result.skipped.length === 1 ? 'this one' : 'these'}:</p>
+                  <ul>
+                    {result.skipped.map((s, i) => (
+                      <li key={i}>
+                        <strong>{s.label}</strong> — {s.reason}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </>
           )
         )}

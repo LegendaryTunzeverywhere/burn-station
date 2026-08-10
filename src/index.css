@@ -145,6 +145,9 @@ a:hover { text-decoration: underline; }
 .modal-title.error { color: var(--danger); }
 .modal-msg { color: var(--muted); font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; text-align: left; }
 .modal-sigs { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; }
+.modal-skipped { text-align: left; font-size: 13px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+.modal-skipped-title { margin: 0 0 6px; font-weight: 600; color: var(--text); }
+.modal-skipped ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
 .modal-close { margin-top: 8px; padding: 10px 24px; border: 1px solid var(--border); background: var(--bg-elev-2); color: var(--text); border-radius: 10px; cursor: pointer; font-family: inherit; font-weight: 600; }
 
 .footer { text-align: center; padding: 20px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); }
