@@ -8,9 +8,10 @@ export const RPC_URL = typeof window !== 'undefined'
   ? `${window.location.origin}/api/rpc`
   : '/api/rpc';
 
-// Log RPC URL on client for debugging
+// Keep client logs generic; the actual RPC target stays server-side and should not
+// be exposed to browser tooling or debug noise.
 if (typeof window !== 'undefined') {
-  console.info(`[config] RPC endpoint: ${RPC_URL}`);
+  console.info('[config] RPC proxy enabled');
 }
 
 export const FEE_BPS: number = Number(import.meta.env.VITE_FEE_BPS ?? 100);

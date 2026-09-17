@@ -163,7 +163,9 @@ export async function buildBurnTransactions(
   // that's still not rent-exempt — which the runtime rejects just as it would
   // for a stranded sender. That's `InsufficientFundsForRent` on the fee
   // wallet's account index, not the burner's.
-  const WALLET_RENT_EXEMPT = 890_880;
+  // Use the current network rent-exempt floor instead of a stale hardcoded value,
+  // because Solana rent rules are schedule-based and can change over time.
+  const WALLET_RENT_EXEMPT = await connection.getMinimumBalanceForRentExemption(0);
 
   // Estimate transaction fee: base fee (5000 lamports) + priority fee
   // Priority fee = COMPUTE_UNIT_LIMIT * PRIORITY_MICRO_LAMPORTS / 1,000,000
